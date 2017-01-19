@@ -83,7 +83,7 @@ Highest PMI with death: *(death, word) (PMI, co-occur count)*
 (death, life) (0.7381346, 31)
 
 ## 7.) 
-*(Hockey, word) (PMI, co-occur count)*
+->(Hockey, word) (PMI, co-occur count)
 
 (hockey, defenceman)	(2.4030268, 147)
 
@@ -96,7 +96,7 @@ Highest PMI with death: *(death, word) (PMI, co-occur count)*
 (hockey, nhl)		(1.9864639, 940)
 
 ## 8.)
-*(data, word) (PMI, co-occur count)*
+->(data, word) (PMI, co-occur count)
 
 (data, storage)		(1.9796829, 100)
 
