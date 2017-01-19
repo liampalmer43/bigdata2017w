@@ -1,4 +1,4 @@
-### Assignment 2
+### Assignment 1
 
 ## 1.)
 Both the Pairs and Stripes implementation used 2 MapReduce Jobs.  In both cases, the first MapReduce job's Map simply tokenized lines of the input file and outputted (word1, 1) for every unique word in the first 40 words of a line, in addition to ("*", 1) for every line.  This allowed the line occurances for individual words and the total line count to be calculated easily in the first reducer.  This data was outputted to a directory that would later be read from in the second MapReduce job.
