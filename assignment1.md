@@ -36,21 +36,35 @@ Total ~ 24s
 77198 Distinct PMI Pairs
 
 ## 5.) 
-Highest PMI:
+Highest PMI: *(word1, word2) (PMI, co-occur count)*
 (maine, anjou)  (3.6331422, 12)
 (anjou, maine)  (3.6331422, 12)
 In Shakespeare's Henry VI, Maine and Anjou are regions of France that are commonly discussed in the same context, thus resulting in a high PMI for these words.
-Lowest PMI:
+Lowest PMI: *(word1, word2) (PMI, co-occur count)*
 (thy, you)  (-1.5303967, 11)
 (you, thy)  (-1.5303967, 11)
 "Thy" means "Your", and the words you and your seem like unlikely combinations in Shakespeare, thus resulting in a low PMI for these words.
 
 ## 6.)
-Highest PMI with tears:
+Highest PMI with tears: *(tears, word) (PMI, co-occur count)*
 (tears, shed) (2.1117902, 15)
 (tears, salt) (2.052812, 11)
 (tears, eyes) (1.165167, 23)
-Highest PMI with death:
+Highest PMI with death: *(death, word) (PMI, co-occur count)*
 (death, father's) (1.120252, 21)
 (death, die)  (0.7541594, 18)
 (death, life) (0.7381346, 31)
+
+## 7.) *(Hockey, word) (PMI, co-occur count)*
+(hockey, defenceman)	(2.4030268, 147)
+(hockey, winger)	(2.3863757, 185)
+(hockey, goaltender)	(2.2434428, 198)
+(hockey, ice)		(2.195185, 2002)
+(hockey, nhl)		(1.9864639, 940)
+
+## 8.) *(data, word) (PMI, co-occur count)*
+(data, storage)		(1.9796829, 100)
+(data, database)	(1.8992721, 97)
+(data, disk)		(1.7935462, 67)
+(data, stored)		(1.7868547, 65)
+(data, processing)	(1.6476576, 57)
