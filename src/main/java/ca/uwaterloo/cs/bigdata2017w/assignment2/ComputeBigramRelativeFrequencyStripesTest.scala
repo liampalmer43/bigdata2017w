@@ -24,9 +24,6 @@ import org.apache.spark.SparkContext
 import org.apache.spark.SparkConf
 import org.rogach.scallop._
 
-import scala.collection.immutable.Map
-import scala.collection.mutable.ListBuffer
-
 class StripesTestConf(args: Seq[String]) extends ScallopConf(args) with Tokenizer {
   mainOptions = Seq(input, output, reducers)
   val input = opt[String](descr = "input path", required = true)
