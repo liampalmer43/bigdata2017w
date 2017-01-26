@@ -25,6 +25,7 @@ import org.apache.spark.SparkConf
 import org.rogach.scallop._
 
 import scala.collection.mutable.Map
+import scala.collection.mutable.ListBuffer
 
 class StripesConf(args: Seq[String]) extends ScallopConf(args) with Tokenizer {
   mainOptions = Seq(input, output, reducers)
@@ -54,7 +55,32 @@ object ComputeBigramRelativeFrequencyStripes extends Tokenizer {
     val counts = textFile
       .flatMap(line => {
         val tokens = tokenize(line)
-        if (tokens.length > 1) tokens.sliding(2).map(p => (p(0), Map[String, Float](p(1) -> 1.0f))).toList else List()
+        var words = Map[String, Map[String, Float]]()
+        for (i <- 0 to tokens.length-2) {
+          val word1 = tokens(i)
+          val word2 = tokens(i+1)
+          if (words.contains(word1)) {
+            if (words(word1).contains(word2)) {
+              var map = words(word1)
+              map += (word2 -> (map(word2) + 1.0f))
+              words += (word1 -> map)
+            } else {
+              var map = words(word1)
+              map += (word2 -> 1.0f)
+              words += (word1 -> map)
+            }
+          } else {
+            var map = Map[String, Float]()
+            map += (word2 -> 1.0f)
+            words += (word1 -> map)
+          }
+        }
+        var result = new ListBuffer[(String, Map[String, Float])]
+        for ((k, v) <- words) {
+          val pair = (k, v)
+          result += pair
+        }
+        result.toList
       })
       .reduceByKey((map1, map2) => {
         map1 ++ map2.map{case (k,v) => k -> (v + map1.getOrElse(k,0.0f))}
