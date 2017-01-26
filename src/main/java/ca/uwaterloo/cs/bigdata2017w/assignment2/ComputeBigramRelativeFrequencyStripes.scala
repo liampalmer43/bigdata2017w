@@ -86,16 +86,13 @@ object ComputeBigramRelativeFrequencyStripes extends Tokenizer {
         map1 ++ map2.map{case (k,v) => k -> (v + map1.getOrElse(k,0.0f))}
       })
       .map(s => {
-        var map = s._2
+        var map = Map[String, Float]()
         var sum = 0.0f
         for ((k,v) <- s._2) sum += v
         for ((k,v) <- s._2) map += (k -> v/sum)
-        (s._1, map)
-      })
-      .map(s => {
-        val word = s._1
-        val map = s._2.map(kv => kv._1 + "=" + kv._2.toString).mkString("{", ", ", "}")
-        s"$word $map"
+        val wordString = s._1
+        val mapString = map.map(kv => kv._1 + "=" + kv._2.toString).mkString("{", ", ", "}")
+        s"$wordString $mapString"
       })
     counts.saveAsTextFile(args.output())
   }
