@@ -54,7 +54,7 @@ object ComputeBigramRelativeFrequencyStripes extends Tokenizer {
     val counts = textFile
       .flatMap(line => {
         val tokens = tokenize(line)
-        if (tokens.length > 1) tokens.sliding(2).map(p => (p(0) -> Map[String, Float](p(1) -> 1.0f))).toList else List()
+        if (tokens.length > 1) tokens.sliding(2).map(p => (p(0), Map[String, Float](p(1) -> 1.0f))).toList else List()
       })
       .reduceByKey((map1, map2) => {
         map1 ++ map2.map{case (k,v) => k -> (v + map1.getOrElse(k,0.0f))}
