@@ -24,10 +24,7 @@ import org.apache.spark.SparkContext
 import org.apache.spark.SparkConf
 import org.rogach.scallop._
 
-import scala.collection.mutable.Map
-import scala.collection.mutable.ListBuffer
-
-class StripesConf(args: Seq[String]) extends ScallopConf(args) with Tokenizer {
+class StripesTestConf(args: Seq[String]) extends ScallopConf(args) with Tokenizer {
   mainOptions = Seq(input, output, reducers)
   val input = opt[String](descr = "input path", required = true)
   val output = opt[String](descr = "output path", required = true)
@@ -35,11 +32,11 @@ class StripesConf(args: Seq[String]) extends ScallopConf(args) with Tokenizer {
   verify()
 }
 
-object ComputeBigramRelativeFrequencyStripes extends Tokenizer {
+object ComputeBigramRelativeFrequencyStripesTest extends Tokenizer {
   val log = Logger.getLogger(getClass().getName())
 
   def main(argv: Array[String]) {
-    val args = new StripesConf(argv)
+    val args = new StripesTestConf(argv)
 
     log.info("Input: " + args.input())
     log.info("Output: " + args.output())
@@ -55,43 +52,16 @@ object ComputeBigramRelativeFrequencyStripes extends Tokenizer {
     val counts = textFile
       .flatMap(line => {
         val tokens = tokenize(line)
-        var words = Map[String, Map[String, Float]]()
-        for (i <- 0 to tokens.length-2) {
-          val word1 = tokens(i)
-          val word2 = tokens(i+1)
-          if (words.contains(word1)) {
-            if (words(word1).contains(word2)) {
-              var map = words(word1)
-              map += (word2 -> (map(word2) + 1.0f))
-              words += (word1 -> map)
-            } else {
-              var map = words(word1)
-              map += (word2 -> 1.0f)
-              words += (word1 -> map)
-            }
-          } else {
-            var map = Map[String, Float]()
-            map += (word2 -> 1.0f)
-            words += (word1 -> map)
-          }
-        }
-        var result = new ListBuffer[(String, Map[String, Float])]
-        for ((k, v) <- words) {
-          val pair = (k, v)
-          result += pair
-        }
-        result.toList
+        if (tokens.length > 1) tokens.sliding(2).map(p => (p(0), Map[String, Float](p(1)-> 1.0f))).toList else List()
       })
       .reduceByKey((map1, map2) => {
         map1 ++ map2.map{case (k,v) => k -> (v + map1.getOrElse(k,0.0f))}
       })
       .map(s => {
-        var map = Map[String, Float]()
         var sum = 0.0f
         for ((k,v) <- s._2) sum += v
-        for ((k,v) <- s._2) map += (k -> v/sum)
         val wordString = s._1
-        val mapString = map.map(kv => kv._1 + "=" + kv._2.toString).mkString("{", ", ", "}")
+        val mapString = s._2.map(kv => kv._1 + "=" + (kv._2/sum).toString).mkString("{", ", ", "}")
         s"$wordString $mapString"
       })
     counts.saveAsTextFile(args.output())
