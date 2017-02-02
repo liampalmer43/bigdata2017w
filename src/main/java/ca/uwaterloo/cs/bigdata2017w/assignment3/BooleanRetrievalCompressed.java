@@ -20,23 +20,23 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.MapFile;
-import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.WritableUtils;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
+import org.apache.commons.lang.ArrayUtils;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
 import org.kohsuke.args4j.ParserProperties;
 import tl.lin.data.array.ArrayListWritable;
-import tl.lin.data.pair.PairOfInts;
-import tl.lin.data.pair.PairOfWritables;
 
+import java.io.DataInputStream;
+import java.io.ByteArrayInputStream;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -45,24 +45,25 @@ import java.util.Stack;
 import java.util.TreeSet;
 import java.util.List;
 import java.util.ArrayList;
-import java.io.*;
+
 
 public class BooleanRetrievalCompressed extends Configured implements Tool {
-  private List<MapFile.Reader> index;
+  private List<MapFile.Reader> indices;
   private FSDataInputStream collection;
   private Stack<Set<Integer>> stack;
 
   private BooleanRetrievalCompressed() {}
 
   private void initialize(String indexPath, String collectionPath, FileSystem fs) throws IOException {
-    index = new ArrayList<>();
-    Path path = new Path(indexPath);
-    FileStatus[] list = fs.listStatus(path);
-    for (FileStatus status : list) {
-        if (!status.isFile()) {
-          index.add(new MapFile.Reader(status.getPath(), fs.getConf()));
-        }
+    indices = new ArrayList<>();   
+
+    FileStatus[] fileStatus = fs.listStatus(new Path(indexPath));
+    for (FileStatus status : fileStatus) {
+      if (status.isDirectory()) {
+        indices.add(new MapFile.Reader(status.getPath(), fs.getConf()));
+      }
     }
+
     collection = fs.open(new Path(collectionPath));
     stack = new Stack<>();
   }
@@ -126,35 +127,32 @@ public class BooleanRetrievalCompressed extends Configured implements Tool {
 
   private Set<Integer> fetchDocumentSet(String term) throws IOException {
     Set<Integer> set = new TreeSet<>();
-    BytesWritable BW = fetchPostings(term);
-    ByteArrayInputStream BIS = new ByteArrayInputStream(BW.getBytes());
-    DataInputStream DIS = new DataInputStream(BIS);
-    boolean e = false;
-    try {
-      while (true) {
-        int i1 = WritableUtils.readVInt(DIS);
-e = false;
-        int i2 = WritableUtils.readVInt(DIS);
-e = true;
-        set.add(i1);
-      }
-    } catch (IOException dddd) {
-      if (e == true) throw new RuntimeException("EHHHHHHHHHHHH");
-      // Forget about it.
+
+    //BytesWritable list = fetchPostings(term);
+    ByteArrayInputStream stream = new ByteArrayInputStream(fetchPostings(term).getBytes());
+    DataInputStream data = new DataInputStream(stream);    
+
+    int offset = 0;
+    while (true) {
+      try {
+        int i1 = WritableUtils.readVInt(data);
+	      int i2 = WritableUtils.readVInt(data);
+	      set.add(offset + i1);
+	      offset += i1;
+      } catch (IOException ex) { break; }
     }
 
     return set;
   }
 
   private BytesWritable fetchPostings(String term) throws IOException {
-    Text key = new Text();
+    Text key = new Text(term);
     BytesWritable value = new BytesWritable();
 
-    key.set(term);
-    for (MapFile.Reader r: index) {
-      r.get(key, value);
-      if (value.getBytes().length != 0) {
-        return value;
+    for (MapFile.Reader index : indices) {
+      index.get(key, value);
+      if (value != null && value.getBytes().length != 0) {
+	      return value;
       }
     }
 
