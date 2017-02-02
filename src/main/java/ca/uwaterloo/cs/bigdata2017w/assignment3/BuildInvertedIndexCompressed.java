@@ -20,15 +20,15 @@ import io.bespin.java.util.Tokenizer;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.WritableUtils;
+import org.apache.hadoop.io.VIntWritable;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.io.WritableUtils;
-import org.apache.hadoop.io.VIntWritable;
 import org.apache.hadoop.mapreduce.Job;
-import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Partitioner;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
@@ -50,11 +50,10 @@ import tl.lin.data.pair.PairOfStringInt;
 import tl.lin.data.pair.PairOfWritables;
 
 import java.io.DataOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-import java.io.ByteArrayOutputStream;
 
 public class BuildInvertedIndexCompressed extends Configured implements Tool {
   private static final Logger LOG = Logger.getLogger(BuildInvertedIndexCompressed.class);
@@ -87,42 +86,46 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
     private Text previousWord = new Text("");
     private ByteArrayOutputStream BOS = new ByteArrayOutputStream();
     private DataOutputStream DOS = new DataOutputStream(BOS);
-    private int indexTracker = -1;
-    private int docFrequency = 0;
+    private int prevDocId = -1;
+    private int docCount = 0;
 
     @Override
     public void reduce(PairOfStringInt key, Iterable<VIntWritable> values, Context context)
         throws IOException, InterruptedException {
 
       Iterator<VIntWritable> iter = values.iterator();
-      int tf = iter.next().get();
+      int frequency = iter.next().get();
+      String curWord = key.getLeftElement();
+      String prevWord = previousWord.toString();
+      int curDocId = key.getRightElement();
 
-      if (!key.getLeftElement().equals(previousWord.toString()) && !previousWord.toString().equals("")) {
-        WritableUtils.writeVInt(DOS, docFrequency);
+      if (!curWord.equals(prevWord) && !prevWord.equals("")) {
+        WritableUtils.writeVInt(DOS, docCount);
 	      context.write(previousWord, new BytesWritable(BOS.toByteArray()));
-	      indexTracker = -1;
-	      docFrequency = 0;
+	      prevDocId = -1;
+	      docCount = 0;
 	      BOS = new ByteArrayOutputStream();
         DOS = new DataOutputStream(BOS);
       }
       
-      if (indexTracker == -1) {
-        indexTracker = key.getRightElement();
-        WritableUtils.writeVInt(DOS, key.getRightElement());
+      // Delta compression on the document ids.
+      if (prevDocId == -1) {
+        prevDocId = curDocId;
+        WritableUtils.writeVInt(DOS, curDocId);
+        WritableUtils.writeVInt(DOS, frequency);
       } else {
-	      WritableUtils.writeVInt(DOS, key.getRightElement() - indexTracker);
-        indexTracker = key.getRightElement();
+	      WritableUtils.writeVInt(DOS, curDocId - prevDocId);
+        prevDocId = curDocId;
+        WritableUtils.writeVInt(DOS, frequency);
       }
 
-      docFrequency++;
-      
-      WritableUtils.writeVInt(DOS, tf);
-      previousWord.set(key.getLeftElement().toString());
+      docCount++; 
+      previousWord.set(curWord);
     }
 
     @Override
     public void cleanup(Context context) throws IOException, InterruptedException {
-      WritableUtils.writeVInt(DOS, docFrequency);
+      WritableUtils.writeVInt(DOS, docCount);
       context.write(previousWord, new BytesWritable(BOS.toByteArray()));
     }
   }
