@@ -44,16 +44,14 @@ import org.kohsuke.args4j.ParserProperties;
 import tl.lin.data.array.ArrayListWritable;
 import tl.lin.data.fd.Object2IntFrequencyDistribution;
 import tl.lin.data.fd.Object2IntFrequencyDistributionEntry;
-import tl.lin.data.pair.PairOfInts;
 import tl.lin.data.pair.PairOfObjectInt;
 import tl.lin.data.pair.PairOfStringInt;
-import tl.lin.data.pair.PairOfWritables;
 
+import java.util.Iterator;
+import java.util.List;
 import java.io.DataOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.Iterator;
-import java.util.List;
 
 public class BuildInvertedIndexCompressed extends Configured implements Tool {
   private static final Logger LOG = Logger.getLogger(BuildInvertedIndexCompressed.class);
@@ -86,7 +84,7 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
     private Text previousWord = new Text("");
     private ByteArrayOutputStream BOS = new ByteArrayOutputStream();
     private DataOutputStream DOS = new DataOutputStream(BOS);
-    private int prevDocId = -1;
+    private int prevDocId = -1; // For Delta Compression.
     private int docCount = 0;
 
     @Override
@@ -100,12 +98,14 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
       int curDocId = key.getRightElement();
 
       if (!curWord.equals(prevWord) && !prevWord.equals("")) {
+        // Record data:
         WritableUtils.writeVInt(DOS, docCount);
 	      context.write(previousWord, new BytesWritable(BOS.toByteArray()));
-	      prevDocId = -1;
-	      docCount = 0;
+        // Restore state for next record:
 	      BOS = new ByteArrayOutputStream();
         DOS = new DataOutputStream(BOS);
+	      prevDocId = -1;
+	      docCount = 0;
       }
       
       // Delta compression on the document ids.
@@ -125,7 +125,7 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
 
     @Override
     public void cleanup(Context context) throws IOException, InterruptedException {
-      WritableUtils.writeVInt(DOS, docCount);
+      WritableUtils.writeVInt(DOS, docCount); // Not necessary ??
       context.write(previousWord, new BytesWritable(BOS.toByteArray()));
     }
   }
