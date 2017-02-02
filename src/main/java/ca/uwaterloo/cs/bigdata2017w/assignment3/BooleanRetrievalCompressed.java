@@ -21,9 +21,12 @@ import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.MapFile;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.BytesWritable;
+import org.apache.hadoop.io.WritableUtils;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.kohsuke.args4j.CmdLineException;
@@ -40,16 +43,26 @@ import java.io.InputStreamReader;
 import java.util.Set;
 import java.util.Stack;
 import java.util.TreeSet;
+import java.util.List;
+import java.util.ArrayList;
+import java.io.*;
 
 public class BooleanRetrievalCompressed extends Configured implements Tool {
-  private MapFile.Reader index;
+  private List<MapFile.Reader> index;
   private FSDataInputStream collection;
   private Stack<Set<Integer>> stack;
 
   private BooleanRetrievalCompressed() {}
 
   private void initialize(String indexPath, String collectionPath, FileSystem fs) throws IOException {
-    index = new MapFile.Reader(new Path(indexPath + "/part-r-00000"), fs.getConf());
+    index = new ArrayList<>();
+    Path path = new Path(indexPath);
+    FileStatus[] list = fs.listStatus(path);
+    for (FileStatus status : list) {
+        if (!status.isFile()) {
+          index.add(new MapFile.Reader(status.getPath(), fs.getConf()));
+        }
+    }
     collection = fs.open(new Path(collectionPath));
     stack = new Stack<>();
   }
@@ -113,23 +126,39 @@ public class BooleanRetrievalCompressed extends Configured implements Tool {
 
   private Set<Integer> fetchDocumentSet(String term) throws IOException {
     Set<Integer> set = new TreeSet<>();
-
-    for (PairOfInts pair : fetchPostings(term)) {
-      set.add(pair.getLeftElement());
+    BytesWritable BW = fetchPostings(term);
+    ByteArrayInputStream BIS = new ByteArrayInputStream(BW.getBytes());
+    DataInputStream DIS = new DataInputStream(BIS);
+    boolean e = false;
+    try {
+      while (true) {
+        int i1 = WritableUtils.readVInt(DIS);
+e = false;
+        int i2 = WritableUtils.readVInt(DIS);
+e = true;
+        set.add(i1);
+      }
+    } catch (IOException dddd) {
+      if (e == true) throw new RuntimeException("EHHHHHHHHHHHH");
+      // Forget about it.
     }
 
     return set;
   }
 
-  private ArrayListWritable<PairOfInts> fetchPostings(String term) throws IOException {
+  private BytesWritable fetchPostings(String term) throws IOException {
     Text key = new Text();
-    PairOfWritables<IntWritable, ArrayListWritable<PairOfInts>> value =
-        new PairOfWritables<>();
+    BytesWritable value = new BytesWritable();
 
     key.set(term);
-    index.get(key, value);
+    for (MapFile.Reader r: index) {
+      r.get(key, value);
+      if (value.getBytes().length != 0) {
+        return value;
+      }
+    }
 
-    return value.getRightElement();
+    return value;
   }
 
   public String fetchLine(long offset) throws IOException {
