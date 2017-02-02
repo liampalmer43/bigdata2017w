@@ -28,12 +28,10 @@ import org.apache.hadoop.io.WritableUtils;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
-import org.apache.commons.lang.ArrayUtils;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
 import org.kohsuke.args4j.ParserProperties;
-import tl.lin.data.array.ArrayListWritable;
 
 import java.io.DataInputStream;
 import java.io.ByteArrayInputStream;
@@ -45,7 +43,6 @@ import java.util.Stack;
 import java.util.TreeSet;
 import java.util.List;
 import java.util.ArrayList;
-
 
 public class BooleanRetrievalCompressed extends Configured implements Tool {
   private List<MapFile.Reader> index;
@@ -126,18 +123,17 @@ public class BooleanRetrievalCompressed extends Configured implements Tool {
 
   private Set<Integer> fetchDocumentSet(String term) throws IOException {
     Set<Integer> set = new TreeSet<>();
-
-    //BytesWritable list = fetchPostings(term);
-    ByteArrayInputStream stream = new ByteArrayInputStream(fetchPostings(term).getBytes());
-    DataInputStream data = new DataInputStream(stream);    
+    ByteArrayInputStream BIS = new ByteArrayInputStream(fetchPostings(term).getBytes());
+    DataInputStream DIS = new DataInputStream(BIS);    
 
     int offset = 0;
+    int docId, freq;
     while (true) {
       try {
-        int i1 = WritableUtils.readVInt(data);
-	      int i2 = WritableUtils.readVInt(data);
-	      set.add(offset + i1);
-	      offset += i1;
+        docId = WritableUtils.readVInt(DIS);
+	      freq = WritableUtils.readVInt(DIS);
+	      set.add(offset + docId);
+	      offset += docId;
       } catch (IOException ex) { break; }
     }
 
@@ -148,9 +144,9 @@ public class BooleanRetrievalCompressed extends Configured implements Tool {
     Text key = new Text(term);
     BytesWritable value = new BytesWritable();
 
-    for (MapFile.Reader index : index) {
-      index.get(key, value);
-      if (value != null && value.getBytes().length != 0) {
+    for (MapFile.Reader r : index) {
+      r.get(key, value);
+      if (value != null && value.getBytes().length > 0) {
 	      return value;
       }
     }
