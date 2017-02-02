@@ -48,22 +48,21 @@ import java.util.ArrayList;
 
 
 public class BooleanRetrievalCompressed extends Configured implements Tool {
-  private List<MapFile.Reader> indices;
+  private List<MapFile.Reader> index;
   private FSDataInputStream collection;
   private Stack<Set<Integer>> stack;
 
   private BooleanRetrievalCompressed() {}
 
   private void initialize(String indexPath, String collectionPath, FileSystem fs) throws IOException {
-    indices = new ArrayList<>();   
-
-    FileStatus[] fileStatus = fs.listStatus(new Path(indexPath));
-    for (FileStatus status : fileStatus) {
-      if (status.isDirectory()) {
-        indices.add(new MapFile.Reader(status.getPath(), fs.getConf()));
-      }
+    index = new ArrayList<>();
+    Path path = new Path(indexPath);
+    FileStatus[] list = fs.listStatus(path);
+    for (FileStatus status : list) {
+        if (status.isDirectory()) {
+          index.add(new MapFile.Reader(status.getPath(), fs.getConf()));
+        }
     }
-
     collection = fs.open(new Path(collectionPath));
     stack = new Stack<>();
   }
@@ -149,7 +148,7 @@ public class BooleanRetrievalCompressed extends Configured implements Tool {
     Text key = new Text(term);
     BytesWritable value = new BytesWritable();
 
-    for (MapFile.Reader index : indices) {
+    for (MapFile.Reader index : index) {
       index.get(key, value);
       if (value != null && value.getBytes().length != 0) {
 	      return value;
