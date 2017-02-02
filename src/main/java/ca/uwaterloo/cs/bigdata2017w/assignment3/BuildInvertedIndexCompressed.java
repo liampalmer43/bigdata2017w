@@ -22,9 +22,10 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
-import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.BytesWritable;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.WritableUtils;
+import org.apache.hadoop.io.VIntWritable;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
@@ -45,23 +46,22 @@ import tl.lin.data.fd.Object2IntFrequencyDistribution;
 import tl.lin.data.fd.Object2IntFrequencyDistributionEntry;
 import tl.lin.data.pair.PairOfInts;
 import tl.lin.data.pair.PairOfObjectInt;
-import tl.lin.data.pair.PairOfWritables;
 import tl.lin.data.pair.PairOfStringInt;
+import tl.lin.data.pair.PairOfWritables;
 
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-import java.io.*;
+import java.io.ByteArrayOutputStream;
 
 public class BuildInvertedIndexCompressed extends Configured implements Tool {
   private static final Logger LOG = Logger.getLogger(BuildInvertedIndexCompressed.class);
 
-  private static final class MyMapper extends Mapper<LongWritable, Text, PairOfStringInt, IntWritable> {
-    private static final IntWritable FREQUENCY = new IntWritable();
-    private static final PairOfStringInt PAIR = new PairOfStringInt();
-    private static final Object2IntFrequencyDistribution<String> COUNTS =
-        new Object2IntFrequencyDistributionEntry<>();
+  private static final class MyMapper extends Mapper<LongWritable, Text, PairOfStringInt, VIntWritable> {
+    private static final VIntWritable FREQUENCY = new VIntWritable();
+    private static final Object2IntFrequencyDistribution<String> COUNTS = new Object2IntFrequencyDistributionEntry<>();
 
     @Override
     public void map(LongWritable docno, Text doc, Context context)
@@ -76,58 +76,60 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
 
       // Emit postings.
       for (PairOfObjectInt<String> e : COUNTS) {
-        PAIR.set(e.getLeftElement(), (int)docno.get());
         FREQUENCY.set(e.getRightElement());
-        context.write(PAIR, FREQUENCY);
+        context.write(new PairOfStringInt(e.getLeftElement(), (int)docno.get()), FREQUENCY);
       }
     }
   }
 
-  private static final class MyReducer extends
-      Reducer<PairOfStringInt, IntWritable, Text, BytesWritable> {
+  private static final class MyReducer extends Reducer<PairOfStringInt, VIntWritable, Text, BytesWritable> {
+    
+    private Text previousWord = new Text("");
     private ByteArrayOutputStream BOS = new ByteArrayOutputStream();
     private DataOutputStream DOS = new DataOutputStream(BOS);
-
-    private static final Text WORD = new Text();
-    private String previousWord = null;
-    private int df = 0;
+    private int indexTracker = -1;
+    private int docFrequency = 0;
 
     @Override
-    public void reduce(PairOfStringInt key, Iterable<IntWritable> values, Context context)
+    public void reduce(PairOfStringInt key, Iterable<VIntWritable> values, Context context)
         throws IOException, InterruptedException {
-      Iterator<IntWritable> iter = values.iterator();
-      // Current data.
-      String word = key.getLeftElement();
-      int docId = key.getRightElement();
-      int frequency = iter.next().get();
 
-      if (previousWord != null && !word.equals(previousWord)) {
-        WritableUtils.writeVInt(DOS, df);
-        WORD.set(previousWord);
-        context.write(WORD, new BytesWritable(BOS.toByteArray()));
-        // Clear variables.
-        BOS = new ByteArrayOutputStream();
+      Iterator<VIntWritable> iter = values.iterator();
+      int tf = iter.next().get();
+
+      if (!key.getLeftElement().equals(previousWord.toString()) && !previousWord.toString().equals("")) {
+        WritableUtils.writeVInt(DOS, docFrequency);
+	      context.write(previousWord, new BytesWritable(BOS.toByteArray()));
+	      indexTracker = -1;
+	      docFrequency = 0;
+	      BOS = new ByteArrayOutputStream();
         DOS = new DataOutputStream(BOS);
-        df = 0;
+      }
+      
+      if (indexTracker == -1) {
+        indexTracker = key.getRightElement();
+        WritableUtils.writeVInt(DOS, key.getRightElement());
+      } else {
+	      WritableUtils.writeVInt(DOS, key.getRightElement() - indexTracker);
+        indexTracker = key.getRightElement();
       }
 
-      df++;
-      previousWord = word;
-      WritableUtils.writeVInt(DOS, docId);
-      WritableUtils.writeVInt(DOS, frequency);
+      docFrequency++;
+      
+      WritableUtils.writeVInt(DOS, tf);
+      previousWord.set(key.getLeftElement().toString());
     }
 
     @Override
     public void cleanup(Context context) throws IOException, InterruptedException {
-        WritableUtils.writeVInt(DOS, df);
-        WORD.set(previousWord);
-        context.write(WORD, new BytesWritable(BOS.toByteArray()));
+      WritableUtils.writeVInt(DOS, docFrequency);
+      context.write(previousWord, new BytesWritable(BOS.toByteArray()));
     }
   }
 
-  private static final class MyPartitioner extends Partitioner<PairOfStringInt, IntWritable> {
+  private static final class MyPartitioner extends Partitioner<PairOfStringInt, VIntWritable> {
     @Override
-    public int getPartition(PairOfStringInt key, IntWritable value, int numReduceTasks) {
+    public int getPartition(PairOfStringInt key, VIntWritable value, int numReduceTasks) {
       return (key.getLeftElement().hashCode() & Integer.MAX_VALUE) % numReduceTasks;
     }
   }
@@ -135,17 +137,17 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
   private BuildInvertedIndexCompressed() {}
 
   private static final class Args {
-    @Option(name = "-input", metaVar = "[path]", required = true, usage = "input path")
-    String input;
-
     @Option(name = "-reducers", metaVar = "[num]", usage = "number of reducers")
     int numReducers = 1;
+
+    @Option(name = "-input", metaVar = "[path]", required = true, usage = "input path")
+    String input;
 
     @Option(name = "-output", metaVar = "[path]", required = true, usage = "output path")
     String output;
   }
-
-  /**
+  
+   /**
    * Runs this tool.
    */
   @Override
@@ -176,11 +178,10 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
     FileOutputFormat.setOutputPath(job, new Path(args.output));
 
     job.setMapOutputKeyClass(PairOfStringInt.class);
-    job.setMapOutputValueClass(IntWritable.class);
+    job.setMapOutputValueClass(VIntWritable.class);
     job.setOutputKeyClass(Text.class);
     job.setOutputValueClass(BytesWritable.class);
     job.setOutputFormatClass(MapFileOutputFormat.class);
-    //job.setOutputFormatClass(TextOutputFormat.class);
 
     job.setMapperClass(MyMapper.class);
     job.setReducerClass(MyReducer.class);
