@@ -57,6 +57,8 @@ public class BuildPersonalizedPageRankRecords extends Configured implements Tool
   private static final Logger LOG = Logger.getLogger(BuildPersonalizedPageRankRecords.class);
 
   private static final String NODE_CNT_FIELD = "node.cnt";
+  private static final String NODE_SRC_FIELD = "node.sources";
+  private static int[] NODE_SOURCES;
 
   private static class MyMapper extends Mapper<LongWritable, Text, IntWritable, PageRankNode> {
     private static final IntWritable nid = new IntWritable();
@@ -64,19 +66,37 @@ public class BuildPersonalizedPageRankRecords extends Configured implements Tool
 
     @Override
     public void setup(Mapper<LongWritable, Text, IntWritable, PageRankNode>.Context context) {
+      // Get the node count of the graph.
       int n = context.getConfiguration().getInt(NODE_CNT_FIELD, 0);
       if (n == 0) {
         throw new RuntimeException(NODE_CNT_FIELD + " cannot be 0!");
       }
+      // Get the node sources for personalized page rank.
+      int[] sources = context.getConfiguration().getInts(NODE_SRC_FIELD);
+      if (sources.length == 0) {
+        throw new RuntimeException(NODE_SRC_FIELD + " cannot have length 0!");
+      }
+      NODE_SOURCES = sources;
+
       node.setType(PageRankNode.Type.Complete);
+      // The following only applys for non-personalized page rank.
       // Initially, page rank is 1/n (in log format log(1/n) = log1-logn = logn).
-      node.setPageRank((float) -StrictMath.log(n));
+      // node.setPageRank((float) -StrictMath.log(n));
     }
 
     @Override
     public void map(LongWritable key, Text t, Context context) throws IOException,
         InterruptedException {
       String[] arr = t.toString().trim().split("\\s+");
+
+      // Set the page rank appropriately.
+      if (Integer.parseInt(arr[0]) == NODE_SOURCES[0]) {
+        // log(1) = 0
+        node.setPageRank(0.0f);
+      } else {
+        // log(0) = -inf
+        node.setPageRank(Float.NEGATIVE_INFINITY);
+      }
 
       nid.set(Integer.parseInt(arr[0]));
       if (arr.length == 1) {
@@ -110,6 +130,7 @@ public class BuildPersonalizedPageRankRecords extends Configured implements Tool
   private static final String INPUT = "input";
   private static final String OUTPUT = "output";
   private static final String NUM_NODES = "numNodes";
+  private static final String SOURCES = "sources";
 
   /**
    * Runs this tool.
@@ -124,6 +145,8 @@ public class BuildPersonalizedPageRankRecords extends Configured implements Tool
         .withDescription("output path").create(OUTPUT));
     options.addOption(OptionBuilder.withArgName("num").hasArg()
         .withDescription("number of nodes").create(NUM_NODES));
+    options.addOption(OptionBuilder.withArgName("src").hasArg()
+        .withDescription("node sources").create(SOURCES));
 
     CommandLine cmdline;
     CommandLineParser parser = new GnuParser();
@@ -135,7 +158,7 @@ public class BuildPersonalizedPageRankRecords extends Configured implements Tool
       return -1;
     }
 
-    if (!cmdline.hasOption(INPUT) || !cmdline.hasOption(OUTPUT) || !cmdline.hasOption(NUM_NODES)) {
+    if (!cmdline.hasOption(INPUT) || !cmdline.hasOption(OUTPUT) || !cmdline.hasOption(NUM_NODES) || !cmdline.hasOption(SOURCES)) {
       System.out.println("args: " + Arrays.toString(args));
       HelpFormatter formatter = new HelpFormatter();
       formatter.setWidth(120);
@@ -147,14 +170,17 @@ public class BuildPersonalizedPageRankRecords extends Configured implements Tool
     String inputPath = cmdline.getOptionValue(INPUT);
     String outputPath = cmdline.getOptionValue(OUTPUT);
     int n = Integer.parseInt(cmdline.getOptionValue(NUM_NODES));
+    String sources = cmdline.getOptionValue(SOURCES);
 
     LOG.info("Tool name: " + BuildPersonalizedPageRankRecords.class.getSimpleName());
     LOG.info(" - inputDir: " + inputPath);
     LOG.info(" - outputDir: " + outputPath);
     LOG.info(" - numNodes: " + n);
+    LOG.info(" - sources: " + sources);
 
     Configuration conf = getConf();
     conf.setInt(NODE_CNT_FIELD, n);
+    conf.set(NODE_SRC_FIELD, sources);
     conf.setInt("mapred.min.split.size", 1024 * 1024 * 1024);
 
     Job job = Job.getInstance(conf);

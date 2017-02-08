@@ -329,6 +329,7 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
       Mapper<IntWritable, PageRankNode, IntWritable, PageRankNode> {
     private float missingMass = 0.0f;
     private int nodeCnt = 0;
+    private int[] nodeSrc;
 
     @Override
     public void setup(Context context) throws IOException {
@@ -336,6 +337,12 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
 
       missingMass = conf.getFloat("MissingMass", 0.0f);
       nodeCnt = conf.getInt("NodeCount", 0);
+      // Get the node sources for personalized page rank.
+      int[] sources = conf.getInts("NodeSources");
+      if (sources.length == 0) {
+        throw new RuntimeException("NodeSources cannot have length 0!");
+      }
+      nodeSrc = sources;
     }
 
     @Override
@@ -343,13 +350,28 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
         throws IOException, InterruptedException {
       float p = node.getPageRank();
 
+      // Non-personalized page rank.
+      /*
       float jump = (float) (Math.log(ALPHA) - Math.log(nodeCnt));
       float link = (float) Math.log(1.0f - ALPHA)
           + sumLogProbs(p, (float) (Math.log(missingMass) - Math.log(nodeCnt)));
 
       p = sumLogProbs(jump, link);
       node.setPageRank(p);
+      */
 
+      // Personalized page rank.
+      if (node.getNodeId() == nodeSrc[0]) {
+        float jump = (float) (Math.log(ALPHA));
+        float link = (float) Math.log(1.0f - ALPHA)
+          + sumLogProbs(p, (float) (Math.log(missingMass)));
+
+        p = sumLogProbs(jump, link);
+      } else {
+        p = (float) Math.log(1.0f - ALPHA) + p;
+      }
+
+      node.setPageRank(p);
       context.write(nid, node);
     }
   }
@@ -369,6 +391,7 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
 
   private static final String BASE = "base";
   private static final String NUM_NODES = "numNodes";
+  private static final String SOURCES = "sources";
   private static final String START = "start";
   private static final String END = "end";
   private static final String COMBINER = "useCombiner";
@@ -390,6 +413,8 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
         .withDescription("end iteration").create(END));
     options.addOption(OptionBuilder.withArgName("num").hasArg()
         .withDescription("number of nodes").create(NUM_NODES));
+    options.addOption(OptionBuilder.withArgName("src").hasArg()
+        .withDescription("node sources").create(SOURCES));
 
     CommandLine cmdline;
     CommandLineParser parser = new GnuParser();
@@ -402,7 +427,7 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
     }
 
     if (!cmdline.hasOption(BASE) || !cmdline.hasOption(START) ||
-        !cmdline.hasOption(END) || !cmdline.hasOption(NUM_NODES)) {
+        !cmdline.hasOption(END) || !cmdline.hasOption(NUM_NODES) || !cmdline.hasOption(SOURCES)) {
       System.out.println("args: " + Arrays.toString(args));
       HelpFormatter formatter = new HelpFormatter();
       formatter.setWidth(120);
@@ -413,6 +438,7 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
 
     String basePath = cmdline.getOptionValue(BASE);
     int n = Integer.parseInt(cmdline.getOptionValue(NUM_NODES));
+    String sources = cmdline.getOptionValue(SOURCES);
     int s = Integer.parseInt(cmdline.getOptionValue(START));
     int e = Integer.parseInt(cmdline.getOptionValue(END));
     boolean useCombiner = cmdline.hasOption(COMBINER);
@@ -420,20 +446,21 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
     LOG.info("Tool name: RunPageRank");
     LOG.info(" - base path: " + basePath);
     LOG.info(" - num nodes: " + n);
+    LOG.info(" - node sources: " + sources);
     LOG.info(" - start iteration: " + s);
     LOG.info(" - end iteration: " + e);
     LOG.info(" - use combiner: " + useCombiner);
 
     // Iterate PageRank.
     for (int i = s; i < e; i++) {
-      iteratePageRank(i, i + 1, basePath, n, useCombiner);
+      iteratePageRank(i, i + 1, basePath, n, sources, useCombiner);
     }
 
     return 0;
   }
 
   // Run each iteration.
-  private void iteratePageRank(int i, int j, String basePath, int numNodes,
+  private void iteratePageRank(int i, int j, String basePath, int numNodes, String sources,
       boolean useCombiner) throws Exception {
     // Each iteration consists of two phases (two MapReduce jobs).
 
@@ -444,7 +471,7 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
     float missing = 1.0f - (float) StrictMath.exp(mass);
 
     // Job 2: distribute missing mass, take care of random jump factor.
-    phase2(i, j, missing, basePath, numNodes);
+    phase2(i, j, missing, basePath, numNodes, sources);
   }
 
   private float phase1(int i, int j, String basePath, int numNodes,
@@ -520,13 +547,14 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
     return mass;
   }
 
-  private void phase2(int i, int j, float missing, String basePath, int numNodes) throws Exception {
+  private void phase2(int i, int j, float missing, String basePath, int numNodes, String sources) throws Exception {
     Job job = Job.getInstance(getConf());
     job.setJobName("PageRank:Basic:iteration" + j + ":Phase2");
     job.setJarByClass(RunPersonalizedPageRankBasic.class);
 
     LOG.info("missing PageRank mass: " + missing);
     LOG.info("number of nodes: " + numNodes);
+    LOG.info("node sources: " + sources);
 
     String in = basePath + "/iter" + formatter.format(j) + "t";
     String out = basePath + "/iter" + formatter.format(j);
@@ -539,6 +567,7 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
     job.getConfiguration().setBoolean("mapred.reduce.tasks.speculative.execution", false);
     job.getConfiguration().setFloat("MissingMass", (float) missing);
     job.getConfiguration().setInt("NodeCount", numNodes);
+    job.getConfiguration().set("NodeSources", sources);
 
     job.setNumReduceTasks(0);
 

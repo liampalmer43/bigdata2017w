@@ -110,6 +110,8 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
         key.set(pair.getLeftElement());
         // We're outputting a string so we can control the formatting.
         value.set(String.format("%.5f", pair.getRightElement()));
+        // Print to std out.
+        System.out.println(String.format("%.5f %d", (float)StrictMath.exp(pair.getRightElement()), pair.getLeftElement()));
         context.write(key, value);
       }
     }
