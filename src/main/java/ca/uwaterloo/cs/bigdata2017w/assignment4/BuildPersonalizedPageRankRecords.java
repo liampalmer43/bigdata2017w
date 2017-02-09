@@ -40,6 +40,7 @@ import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.log4j.Logger;
 import tl.lin.data.array.ArrayListOfIntsWritable;
+import tl.lin.data.array.ArrayListOfFloatsWritable;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -90,14 +91,33 @@ public class BuildPersonalizedPageRankRecords extends Configured implements Tool
       String[] arr = t.toString().trim().split("\\s+");
 
       // Set the page rank appropriately.
+      int nodeId = Integer.parseInt(arr[0]);
+      float[] pageranks = new float[NODE_SOURCES.length];
+      for (int i = 0; i < pageranks.length; ++i) {
+        // log(0) = -inf
+        pageranks[i] = Float.NEGATIVE_INFINITY;
+      }
+      for (int i = 0; i < NODE_SOURCES.length; ++i) {
+        if (nodeId == NODE_SOURCES[i]) {
+          // log(1) = 0
+          pageranks[i] = 0.0f;
+        }
+      }
+      node.setPageRank(new ArrayListOfFloatsWritable(pageranks));
+
+/*
       if (Integer.parseInt(arr[0]) == NODE_SOURCES[0]) {
-        // log(1) = 0
-        node.setPageRank(0.0f);
+        // node.setPageRank(0.0f);
+        int[] pageranks = new int[NODE_SOURCES.length];
+        for (int i = 0; i < pageranks.length; ++i) {
+          pageranks[i] = 0.0f;
+        }
+        node.setPageRank(new ArrayListOfFloatsWritable(pageranks));
       } else {
         // log(0) = -inf
         node.setPageRank(Float.NEGATIVE_INFINITY);
       }
-
+*/
       nid.set(Integer.parseInt(arr[0]));
       if (arr.length == 1) {
         node.setNodeId(Integer.parseInt(arr[0]));

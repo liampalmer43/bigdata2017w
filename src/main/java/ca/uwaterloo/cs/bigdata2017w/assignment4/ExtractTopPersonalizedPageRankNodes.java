@@ -40,19 +40,22 @@ import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.log4j.Logger;
+import tl.lin.data.pair.PairOfInts;
 import tl.lin.data.pair.PairOfObjectFloat;
 import tl.lin.data.queue.TopScoredObjects;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.List;
+import java.util.ArrayList;
 
 public class ExtractTopPersonalizedPageRankNodes extends Configured implements Tool {
   private static final Logger LOG = Logger.getLogger(ExtractTopPersonalizedPageRankNodes.class);
 
   private static class MyMapper extends
-      Mapper<IntWritable, PageRankNode, IntWritable, FloatWritable> {
-    private TopScoredObjects<Integer> queue;
+      Mapper<IntWritable, PageRankNode, PairOfInts, FloatWritable> {
+    private List< TopScoredObjects<Integer> > queues;
     private int[] nodeSrc;
 
     @Override
@@ -67,43 +70,67 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
       nodeSrc = sources;
 
       int k = conf.getInt("n", 100);
-      queue = new TopScoredObjects<>(k);
+      queues = new ArrayList<>();
+      for (int i = 0; i < nodeSrc.length; ++i) {
+        queues.add(new TopScoredObjects<Integer>(k));
+      }
+      //queue = new TopScoredObjects<>(k);
     }
 
     @Override
     public void map(IntWritable nid, PageRankNode node, Context context) throws IOException,
         InterruptedException {
-      queue.add(node.getNodeId(), node.getPageRank());
+      for (int i = 0; i < nodeSrc.length; ++i) {
+        queues.get(i).add(node.getNodeId(), node.getPageRank().get(i));
+      }
+      //queue.add(node.getNodeId(), node.getPageRank());
     }
 
     @Override
     public void cleanup(Context context) throws IOException, InterruptedException {
-      IntWritable key = new IntWritable();
+      PairOfInts key = new PairOfInts();
       FloatWritable value = new FloatWritable();
 
-      for (PairOfObjectFloat<Integer> pair : queue.extractAll()) {
-        key.set(pair.getLeftElement());
-        value.set(pair.getRightElement());
-        context.write(key, value);
+      for (int i = 0; i < nodeSrc.length; ++i) {
+        for (PairOfObjectFloat<Integer> pair : queues.get(i).extractAll()) {
+          key.set(pair.getLeftElement(), i);
+          value.set(pair.getRightElement());
+          context.write(key, value);
+        }
       }
     }
   }
 
   private static class MyReducer extends
-      Reducer<IntWritable, FloatWritable, IntWritable, Text> {
-    private static TopScoredObjects<Integer> queue;
+      Reducer<PairOfInts, FloatWritable, IntWritable, Text> {
+    //private static TopScoredObjects<Integer> queue;
+    private List< TopScoredObjects<Integer> > queues;
+    private int[] nodeSrc;
 
     @Override
     public void setup(Context context) throws IOException {
-      int k = context.getConfiguration().getInt("n", 100);
-      queue = new TopScoredObjects<Integer>(k);
+      Configuration conf = context.getConfiguration();
+      // Get the node sources for personalized page rank.
+      int[] sources = conf.getInts("nodeSources");
+      if (sources.length == 0) {
+        throw new RuntimeException("nodeSources cannot have length 0!");
+      }
+      nodeSrc = sources;
+
+      int k = conf.getInt("n", 100);
+      queues = new ArrayList<>();
+      for (int i = 0; i < nodeSrc.length; ++i) {
+        queues.add(new TopScoredObjects<Integer>(k));
+      }
+      //queue = new TopScoredObjects<Integer>(k);
     }
 
     @Override
-    public void reduce(IntWritable nid, Iterable<FloatWritable> iterable, Context context)
+    public void reduce(PairOfInts nid, Iterable<FloatWritable> iterable, Context context)
         throws IOException {
       Iterator<FloatWritable> iter = iterable.iterator();
-      queue.add(nid.get(), iter.next().get());
+      queues.get(nid.getRightElement()).add(nid.getLeftElement(), iter.next().get());
+      //queue.add(nid.get(), iter.next().get());
 
       // Shouldn't happen. Throw an exception.
       if (iter.hasNext()) {
@@ -116,13 +143,17 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
       IntWritable key = new IntWritable();
       Text value = new Text();
 
-      for (PairOfObjectFloat<Integer> pair : queue.extractAll()) {
-        key.set(pair.getLeftElement());
-        // We're outputting a string so we can control the formatting.
-        value.set(String.format("%.5f", pair.getRightElement()));
-        // Print to std out.
-        System.out.println(String.format("%.5f %d", (float)StrictMath.exp(pair.getRightElement()), pair.getLeftElement()));
-        context.write(key, value);
+      for (int i = 0; i < nodeSrc.length; ++i) {
+        System.out.println("Source: " + nodeSrc[i]);
+        for (PairOfObjectFloat<Integer> pair : queues.get(i).extractAll()) {
+          key.set(pair.getLeftElement());
+          // We're outputting a string so we can control the formatting.
+          value.set(String.format("%.5f", pair.getRightElement()));
+          // Print to std out.
+          System.out.println(String.format("%.5f %d", (float)StrictMath.exp(pair.getRightElement()), pair.getLeftElement()));
+          context.write(key, value);
+        }
+        System.out.println("");
       }
     }
   }
@@ -198,7 +229,7 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
     job.setInputFormatClass(SequenceFileInputFormat.class);
     job.setOutputFormatClass(TextOutputFormat.class);
 
-    job.setMapOutputKeyClass(IntWritable.class);
+    job.setMapOutputKeyClass(PairOfInts.class);
     job.setMapOutputValueClass(FloatWritable.class);
 
     job.setOutputKeyClass(IntWritable.class);
