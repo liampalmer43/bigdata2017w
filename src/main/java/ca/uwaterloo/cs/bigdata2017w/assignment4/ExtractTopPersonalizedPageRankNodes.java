@@ -53,10 +53,20 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
   private static class MyMapper extends
       Mapper<IntWritable, PageRankNode, IntWritable, FloatWritable> {
     private TopScoredObjects<Integer> queue;
+    private int[] nodeSrc;
 
     @Override
     public void setup(Context context) throws IOException {
-      int k = context.getConfiguration().getInt("n", 100);
+      Configuration conf = context.getConfiguration();
+      
+      // Get the node sources for personalized page rank.
+      int[] sources = conf.getInts("nodeSources");
+      if (sources.length == 0) {
+        throw new RuntimeException("nodeSources cannot have length 0!");
+      }
+      nodeSrc = sources;
+
+      int k = conf.getInt("n", 100);
       queue = new TopScoredObjects<>(k);
     }
 
@@ -123,6 +133,7 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
   private static final String INPUT = "input";
   private static final String OUTPUT = "output";
   private static final String TOP = "top";
+  private static final String SOURCES = "sources";
 
   /**
    * Runs this tool.
@@ -137,6 +148,8 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
         .withDescription("output path").create(OUTPUT));
     options.addOption(OptionBuilder.withArgName("num").hasArg()
         .withDescription("top n").create(TOP));
+    options.addOption(OptionBuilder.withArgName("src").hasArg()
+        .withDescription("sources").create(SOURCES));
 
     CommandLine cmdline;
     CommandLineParser parser = new GnuParser();
@@ -148,7 +161,7 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
       return -1;
     }
 
-    if (!cmdline.hasOption(INPUT) || !cmdline.hasOption(OUTPUT) || !cmdline.hasOption(TOP)) {
+    if (!cmdline.hasOption(INPUT) || !cmdline.hasOption(OUTPUT) || !cmdline.hasOption(TOP) || !cmdline.hasOption(SOURCES)) {
       System.out.println("args: " + Arrays.toString(args));
       HelpFormatter formatter = new HelpFormatter();
       formatter.setWidth(120);
@@ -160,15 +173,18 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
     String inputPath = cmdline.getOptionValue(INPUT);
     String outputPath = cmdline.getOptionValue(OUTPUT);
     int n = Integer.parseInt(cmdline.getOptionValue(TOP));
+    String sources = cmdline.getOptionValue(SOURCES);
 
     LOG.info("Tool name: " + ExtractTopPersonalizedPageRankNodes.class.getSimpleName());
     LOG.info(" - input: " + inputPath);
     LOG.info(" - output: " + outputPath);
     LOG.info(" - top: " + n);
+    LOG.info(" - sources: " + sources);
 
     Configuration conf = getConf();
     conf.setInt("mapred.min.split.size", 1024 * 1024 * 1024);
     conf.setInt("n", n);
+    conf.set("nodeSources", sources);
 
     Job job = Job.getInstance(conf);
     job.setJobName(ExtractTopPersonalizedPageRankNodes.class.getName() + ":" + inputPath);
