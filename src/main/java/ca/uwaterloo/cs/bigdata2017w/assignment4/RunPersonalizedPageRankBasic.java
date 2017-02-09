@@ -315,6 +315,9 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
       missingMass = new float[missing.length];
       for (int i = 0; i < missing.length; ++i) {
         missingMass[i] = Float.parseFloat(missing[i]);
+        if (missingMass[i] < 0.0f) {
+          missingMass[i] = 0.0f;
+        }
       }
 
       nodeCnt = conf.getInt("NodeCount", 0);
