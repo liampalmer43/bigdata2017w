@@ -433,6 +433,8 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
     int s = Integer.parseInt(cmdline.getOptionValue(START));
     int e = Integer.parseInt(cmdline.getOptionValue(END));
     boolean useCombiner = cmdline.hasOption(COMBINER);
+    // Use combiners:
+    useCombiner = true;
 
     LOG.info("Tool name: RunPageRank");
     LOG.info(" - base path: " + basePath);
