@@ -145,10 +145,13 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
 
       for (int i = 0; i < nodeSrc.length; ++i) {
         System.out.println("Source: " + nodeSrc[i]);
+        key.set(nodeSrc[i]);
+        value.set("Source: " + nodeSrc[i]);
+        context.write(key, value);
         for (PairOfObjectFloat<Integer> pair : queues.get(i).extractAll()) {
           key.set(pair.getLeftElement());
           // We're outputting a string so we can control the formatting.
-          value.set(String.format("%.5f", pair.getRightElement()));
+          value.set(String.format("%.5f %d", (float)StrictMath.exp(pair.getRightElement()), pair.getLeftElement()));
           // Print to std out.
           System.out.println(String.format("%.5f %d", (float)StrictMath.exp(pair.getRightElement()), pair.getLeftElement()));
           context.write(key, value);
