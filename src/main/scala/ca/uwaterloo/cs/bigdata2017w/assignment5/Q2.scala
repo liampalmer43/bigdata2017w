@@ -1,7 +1,5 @@
 package ca.uwaterloo.cs.bigdata2017w.assignment5
 
-import io.bespin.scala.util.Tokenizer
-
 import org.apache.log4j._
 import org.apache.hadoop.fs._
 import org.apache.spark.SparkContext
@@ -11,7 +9,7 @@ import org.rogach.scallop._
 
 import scala.collection.mutable.ListBuffer
 
-object Q2 extends Tokenizer {
+object Q2 {
   val log = Logger.getLogger(getClass().getName())
 
   def main(argv: Array[String]) {
@@ -50,11 +48,11 @@ object Q2 extends Tokenizer {
             result += e
           }
           result.toList
-        }).takeOrdered(20)(Ordering[String].on { (pair: (String, String)) => pair._2 })
+        }).takeOrdered(20)(Ordering[Int].on { (pair: (String, String)) => Integer.parseInt(pair._2) })
         .map(pair => {
           val p1 = pair._1
           val p2 = pair._2
-          println(s"($p1, $p2)")
+          println(s"($p1,$p2)")
         })
     } else if (args.parquet()) {
       val sparkSession = SparkSession.builder.getOrCreate
@@ -80,11 +78,11 @@ object Q2 extends Tokenizer {
             result += e
           }
           result.toList
-        }).takeOrdered(20)(Ordering[String].on { (pair: (String, String)) => pair._2 })
+        }).takeOrdered(20)(Ordering[Int].on { (pair: (String, String)) => Integer.parseInt(pair._2) })
         .map(pair => {
           val p1 = pair._1
           val p2 = pair._2
-          println(s"($p1, $p2)")
+          println(s"($p1,$p2)")
         })
     } else {
       throw new IllegalArgumentException("Must include at least one of --text or --parquet command line options")
