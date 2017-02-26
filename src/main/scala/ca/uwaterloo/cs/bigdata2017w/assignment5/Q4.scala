@@ -24,6 +24,10 @@ object Q4 {
     val conf = new SparkConf().setAppName("Q4")
     val sc = new SparkContext(conf)
 
+    val outputName = "A5Q4"
+    val outputDir = new Path(outputName)
+    FileSystem.get(sc.hadoopConfiguration).delete(outputDir, true)
+
     val date = sc.broadcast(args.date())
 
     if (args.text()) {
@@ -70,64 +74,11 @@ object Q4 {
           val nationName = pair._2._1
           val count = pair._2._2
           println(s"($nationKey,$nationName,$count)")
+          pair
         })
 
-      result.saveAsTextFile("tempfortesting")
-/*
-      val lineitems = sc.textFile(args.input() + "/lineitem.tbl")
-      val orders = sc.textFile(args.input() + "/orders.tbl")
+      result.saveAsTextFile(outputName)
 
-      val lineitemData = lineitems
-        .filter(line => line.split('|')(10).substring(0, date.value.length()) == date.value)
-        .map(line => (line.split('|')(0), '*'))
-
-      val orderData = orders
-        .map(line => (line.split('|')(0), line.split('|')(6)))
-println("About to analyze --------------------------------")
-      lineitemData.cogroup(orderData)
-        .filter(keyIterablePair => {
-println("------------------")
-println("------------------")
-throw new IllegalArgumentException("Must include at least one of --text or --parquet command line options")
-          keyIterablePair._2._1.iterator.hasNext
-        })
-        .map(keyIterablePair => {
-          // We have (orderKey, (Iter["*"], Iter[custKey]))
-          if (keyIterablePair._2._2.iterator.length != 1) {
-            throw new IllegalArgumentException("Only one valid custKey for an order in the order table")
-          }
-          val custKey = keyIterablePair._2._2.iterator.next;
-          // c_custkey -> c_nationkey
-          // n_nationkey -> n_name
-          val nationKey = customerMap.value(custKey)
-          val nationName = nationMap.value(nationKey)
-          ((nationKey, nationName), keyIterablePair._2._1.iterator.length)          
-        }).reduceByKey(_ + _)
-        .map(pair => {
-          val nationKey = pair._1._1
-          val nationName = pair._1._2
-          val count = pair._2
-          println(s"($nationKey,$nationName,$count)")
-        })
-*/
-/*
-        .filter(keyIterablePair => keyIterablePair._2._1.iterator.hasNext)
-        .flatMap(keyIterablePair => {
-          val orderKey = keyIterablePair._1
-          val iter = keyIterablePair._2._2.iterator
-          var result = new ListBuffer[(String, String)]()
-          while (iter.hasNext) {
-            val e = (iter.next, orderKey)
-            result += e
-          }
-          result.toList
-        }).takeOrdered(20)(Ordering[Int].on { (pair: (String, String)) => Integer.parseInt(pair._2) })
-        .map(pair => {
-          val p1 = pair._1
-          val p2 = pair._2
-          println(s"($p1,$p2)")
-        })
-*/
     } else if (args.parquet()) {
       val sparkSession = SparkSession.builder.getOrCreate
       val lineitemDF = sparkSession.read.parquet("TPC-H-0.1-PARQUET/lineitem")
