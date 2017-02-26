@@ -39,7 +39,7 @@ object Q3 {
 
       lineitems
         .filter(line => line.split('|')(10).substring(0, date.value.length()) == date.value)
-        .map(line => (line.split('|')(0), (partMap.value(line.split('|')(1)), partMap.value(line.split('|')(2)))))
+        .map(line => (line.split('|')(0), (partMap.value(line.split('|')(1)), supplierMap.value(line.split('|')(2)))))
         .takeOrdered(20)(Ordering[Int].on { (pair: (String, (String, String))) => Integer.parseInt(pair._1) })
         .map(pair => {
           val l = pair._1
@@ -68,7 +68,7 @@ object Q3 {
 
       lineitemRDD
         .filter(row => row(10).toString.substring(0, date.value.length()) == date.value)
-        .map(row => (row(0).toString, (partMap.value(row(1).toString), partMap.value(row(2).toString))))
+        .map(row => (row(0).toString, (partMap.value(row(1).toString), supplierMap.value(row(2).toString))))
         .takeOrdered(20)(Ordering[Int].on { (pair: (String, (String, String))) => Integer.parseInt(pair._1) })
         .map(pair => {
           val l = pair._1
