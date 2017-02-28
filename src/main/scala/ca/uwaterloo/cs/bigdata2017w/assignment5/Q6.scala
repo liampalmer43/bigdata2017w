@@ -9,7 +9,7 @@ import org.rogach.scallop._
 
 import scala.collection.mutable.ListBuffer
 
-object Q4 {
+object Q6 {
   val log = Logger.getLogger(getClass().getName())
 
   def main(argv: Array[String]) {
@@ -21,37 +21,23 @@ object Q4 {
     log.info("Parquet: " + args.parquet())
     log.info("Date: " + args.date())
 
-    val conf = new SparkConf().setAppName("Q4")
+    val conf = new SparkConf().setAppName("Q6")
     val sc = new SparkContext(conf)
 
-    val outputName = "A5Q4"
+    val outputName = "A5Q6"
     val outputDir = new Path(outputName)
     FileSystem.get(sc.hadoopConfiguration).delete(outputDir, true)
 
     val date = sc.broadcast(args.date())
 
     if (args.text()) {
-      // c_custkey -> c_nationkey
-      val customers = sc.textFile(args.input() + "/customer.tbl")
-      val customerMap = sc.broadcast(customers
-        .map(line => (line.split('|')(0), line.split('|')(3)))
-        .collectAsMap)
-
-      // n_nationkey -> n_name
-      val nations = sc.textFile(args.input() + "/nation.tbl")
-      val nationMap = sc.broadcast(nations
-        .map(line => (line.split('|')(0), line.split('|')(1)))
-        .collectAsMap)
-
       val lineitems = sc.textFile(args.input() + "/lineitem.tbl")
-      val orders = sc.textFile(args.input() + "/orders.tbl")
 
       val lineitemData = lineitems
         .filter(line => line.split('|')(10).substring(0, date.value.length()) == date.value)
+        // Condense line data:
+        .map(line => 
         .map(line => (line.split('|')(0), '*'))
-
-      val orderData = orders
-        .map(line => (line.split('|')(0), line.split('|')(1)))
 
       val result = lineitemData.cogroup(orderData)
         .filter(keyIterablePair => keyIterablePair._2._1.iterator.hasNext)
