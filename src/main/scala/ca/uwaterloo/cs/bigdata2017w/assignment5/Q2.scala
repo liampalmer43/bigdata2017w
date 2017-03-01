@@ -37,23 +37,32 @@ object Q2 {
       val orderData = orders
         .map(line => (line.split('|')(0), line.split('|')(6)))
 
-      lineitemData.cogroup(orderData)
+      val result = lineitemData.cogroup(orderData)
         .filter(keyIterablePair => keyIterablePair._2._1.iterator.hasNext)
         .flatMap(keyIterablePair => {
+          // (orderKey, Iter['*'], Iter[clerk])
+          if (keyIterablePair._2._2.iterator.length != 1) {
+            throw new IllegalArgumentException("Only one valid clerk for an order in the order table")
+          }
           val orderKey = keyIterablePair._1
-          val iter = keyIterablePair._2._2.iterator
+          val clerk = keyIterablePair._2._2.iterator.next
           var result = new ListBuffer[(String, String)]()
+          val iter = keyIterablePair._2._1.iterator
           while (iter.hasNext) {
-            val e = (iter.next, orderKey)
+            iter.next
+            val e = (clerk, orderKey)
             result += e
           }
           result.toList
         }).takeOrdered(20)(Ordering[Int].on { (pair: (String, String)) => Integer.parseInt(pair._2) })
-        .map(pair => {
+
+      for (i <- 0 until result.length) {
+          val pair = result(i)
           val p1 = pair._1
           val p2 = pair._2
           println(s"($p1,$p2)")
-        })
+      }
+
     } else if (args.parquet()) {
       val sparkSession = SparkSession.builder.getOrCreate
       val lineitemDF = sparkSession.read.parquet("TPC-H-0.1-PARQUET/lineitem")
@@ -67,23 +76,31 @@ object Q2 {
       val orderData = orderRDD
         .map(row => (row(0).toString, row(6).toString))
 
-      lineitemData.cogroup(orderData)
+      val result = lineitemData.cogroup(orderData)
         .filter(keyIterablePair => keyIterablePair._2._1.iterator.hasNext)
         .flatMap(keyIterablePair => {
+          // (orderKey, Iter['*'], Iter[clerk])
+          if (keyIterablePair._2._2.iterator.length != 1) {
+            throw new IllegalArgumentException("Only one valid clerk for an order in the order table")
+          }
           val orderKey = keyIterablePair._1
-          val iter = keyIterablePair._2._2.iterator
+          val clerk = keyIterablePair._2._2.iterator.next
           var result = new ListBuffer[(String, String)]()
+          val iter = keyIterablePair._2._1.iterator
           while (iter.hasNext) {
-            val e = (iter.next, orderKey)
+            iter.next
+            val e = (clerk, orderKey)
             result += e
           }
           result.toList
         }).takeOrdered(20)(Ordering[Int].on { (pair: (String, String)) => Integer.parseInt(pair._2) })
-        .map(pair => {
+
+      for (i <- 0 until result.length) {
+          val pair = result(i)
           val p1 = pair._1
           val p2 = pair._2
           println(s"($p1,$p2)")
-        })
+      }
     } else {
       throw new IllegalArgumentException("Must include at least one of --text or --parquet command line options")
     }
