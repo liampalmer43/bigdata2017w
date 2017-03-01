@@ -17,19 +17,18 @@ mark:20/20
 
 **Altiscale Single Source* Implementation
 
-mark:0/10
+mark:10/10
 
 **Altiscale Multiple Source** Implementation
 
-mark:0/10
+mark:10/10
 
 **Summary of deductions:**
 
-No output on Altiscale
 
 **Final grade:**
 
-mark:35/55
+mark:55/55
 
-summary:20534162,LCPALMER,liampalmer43,35
+summary:20534162,LCPALMER,liampalmer43,55
 
