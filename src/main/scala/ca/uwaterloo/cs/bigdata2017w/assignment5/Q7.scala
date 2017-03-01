@@ -71,19 +71,16 @@ object Q7 {
             totalRevenue = totalRevenue + iter.next
           }
 
-          ((custName, orderKey, orderDate, shipPriority), totalRevenue)
-        }).reduceByKey(_ + _)
-        .map(pair => (pair._2, pair._1))
-        .sortByKey(false, 1)
-        .takeOrdered(10)(Ordering[Double].reverse.on { (pair: (Double, (String, String, String, String))) => pair._1 })
+          (custName, orderKey, totalRevenue, orderDate, shipPriority)
+        }).takeOrdered(10)(Ordering[Double].reverse.on { (t: (String, String, Double, String, String)) => t._3 })
 
       for (i <- 0 until result.length) {
-          val pair = result(i)
-          val c_name = pair._2._1
-          val l_orderkey = pair._2._2
-          val revenue = pair._1
-          val o_orderdate = pair._2._3
-          val o_shippriority = pair._2._4
+          val t = result(i)
+          val c_name = t._1
+          val l_orderkey = t._2
+          val revenue = t._3
+          val o_orderdate = t._4
+          val o_shippriority = t._5
           println(s"($c_name,$l_orderkey,$revenue,$o_orderdate,$o_shippriority)")
       }
 
@@ -139,19 +136,16 @@ object Q7 {
             totalRevenue = totalRevenue + iter.next
           }
 
-          ((custName, orderKey, orderDate, shipPriority), totalRevenue)
-        }).reduceByKey(_ + _)
-        .map(pair => (pair._2, pair._1))
-        .sortByKey(false, 1)
-        .takeOrdered(10)(Ordering[Double].reverse.on { (pair: (Double, (String, String, String, String))) => pair._1 })
+          (custName, orderKey, totalRevenue, orderDate, shipPriority)
+        }).takeOrdered(10)(Ordering[Double].reverse.on { (t: (String, String, Double, String, String)) => t._3 })
 
       for (i <- 0 until result.length) {
-          val pair = result(i)
-          val c_name = pair._2._1
-          val l_orderkey = pair._2._2
-          val revenue = pair._1
-          val o_orderdate = pair._2._3
-          val o_shippriority = pair._2._4
+          val t = result(i)
+          val c_name = t._1
+          val l_orderkey = t._2
+          val revenue = t._3
+          val o_orderdate = t._4
+          val o_shippriority = t._5
           println(s"($c_name,$l_orderkey,$revenue,$o_orderdate,$o_shippriority)")
       }
 
