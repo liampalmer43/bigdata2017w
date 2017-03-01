@@ -7,8 +7,6 @@ import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 import org.rogach.scallop._
 
-import scala.collection.mutable.ListBuffer
-
 object Q7 {
   val log = Logger.getLogger(getClass().getName())
 
@@ -52,34 +50,28 @@ object Q7 {
 
       val result = lineitemData.cogroup(orderData)
         .filter(keyIterablePair => keyIterablePair._2._1.iterator.hasNext && keyIterablePair._2._2.iterator.hasNext)
-        .flatMap(keyIterablePair => {
+        .map(keyIterablePair => {
           // We have (orderKey, (Iter[revenue], Iter[(custKey, orderDate, shipPriority)]))
           if (keyIterablePair._2._2.iterator.length != 1) {
             throw new IllegalArgumentException("Only one valid set of order data for an order in the order table")
           }
 
-          var result = new ListBuffer[((String, String, String, String), Double)]()
+          val orderKey = keyIterablePair._1
 
-          if (keyIterablePair._2._2.iterator.length == 1) {
-            val orderKey = keyIterablePair._1
-
-            val orderData = keyIterablePair._2._2.iterator.next;
-            val custKey = orderData._1
-            val orderDate = orderData._2
-            val shipPriority = orderData._3
-            // c_custkey -> c_name
-            val custName = customerMap.value(custKey)
+          val orderData = keyIterablePair._2._2.iterator.next;
+          val custKey = orderData._1
+          val orderDate = orderData._2
+          val shipPriority = orderData._3
+          // c_custkey -> c_name
+          val custName = customerMap.value(custKey)
           
-            val iter = keyIterablePair._2._1.iterator
-            var totalRevenue = 0.0
-            while (iter.hasNext) {
-              totalRevenue = totalRevenue + iter.next
-            }
-
-            val e = ((custName, orderKey, orderDate, shipPriority), totalRevenue)
-            result += e
+          val iter = keyIterablePair._2._1.iterator
+          var totalRevenue = 0.0
+          while (iter.hasNext) {
+            totalRevenue = totalRevenue + iter.next
           }
-          result.toList
+
+          ((custName, orderKey, orderDate, shipPriority), totalRevenue)
         }).reduceByKey(_ + _)
         .map(pair => (pair._2, pair._1))
         .sortByKey(false, 1)
@@ -126,34 +118,28 @@ object Q7 {
 
       val result = lineitemData.cogroup(orderData)
         .filter(keyIterablePair => keyIterablePair._2._1.iterator.hasNext && keyIterablePair._2._2.iterator.hasNext)
-        .flatMap(keyIterablePair => {
+        .map(keyIterablePair => {
           // We have (orderKey, (Iter[revenue], Iter[(custKey, orderDate, shipPriority)]))
           if (keyIterablePair._2._2.iterator.length != 1) {
             throw new IllegalArgumentException("Only one valid set of order data for an order in the order table")
           }
 
-          var result = new ListBuffer[((String, String, String, String), Double)]()
+          val orderKey = keyIterablePair._1
 
-          if (keyIterablePair._2._2.iterator.length == 1) {
-            val orderKey = keyIterablePair._1
-
-            val orderData = keyIterablePair._2._2.iterator.next;
-            val custKey = orderData._1
-            val orderDate = orderData._2
-            val shipPriority = orderData._3
-            // c_custkey -> c_name
-            val custName = customerMap.value(custKey)
+          val orderData = keyIterablePair._2._2.iterator.next;
+          val custKey = orderData._1
+          val orderDate = orderData._2
+          val shipPriority = orderData._3
+          // c_custkey -> c_name
+          val custName = customerMap.value(custKey)
           
-            val iter = keyIterablePair._2._1.iterator
-            var totalRevenue = 0.0
-            while (iter.hasNext) {
-              totalRevenue = totalRevenue + iter.next
-            }
-
-            val e = ((custName, orderKey, orderDate, shipPriority), totalRevenue)
-            result += e
+          val iter = keyIterablePair._2._1.iterator
+          var totalRevenue = 0.0
+          while (iter.hasNext) {
+            totalRevenue = totalRevenue + iter.next
           }
-          result.toList
+
+          ((custName, orderKey, orderDate, shipPriority), totalRevenue)
         }).reduceByKey(_ + _)
         .map(pair => (pair._2, pair._1))
         .sortByKey(false, 1)
