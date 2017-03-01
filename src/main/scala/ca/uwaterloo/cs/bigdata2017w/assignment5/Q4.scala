@@ -22,10 +22,6 @@ object Q4 {
     val conf = new SparkConf().setAppName("Q4")
     val sc = new SparkContext(conf)
 
-    val outputName = "A5Q4"
-    val outputDir = new Path(outputName)
-    FileSystem.get(sc.hadoopConfiguration).delete(outputDir, true)
-
     val date = sc.broadcast(args.date())
 
     if (args.text()) {
