@@ -37,16 +37,19 @@ object Q3 {
       
       val lineitems = sc.textFile(args.input() + "/lineitem.tbl")
 
-      lineitems
+      val result = lineitems
         .filter(line => line.split('|')(10).substring(0, date.value.length()) == date.value)
         .map(line => (line.split('|')(0), (partMap.value(line.split('|')(1)), supplierMap.value(line.split('|')(2)))))
         .takeOrdered(20)(Ordering[Int].on { (pair: (String, (String, String))) => Integer.parseInt(pair._1) })
-        .map(pair => {
+
+      for (i <- 0 until result.length) {
+          val pair = result(i)
           val l = pair._1
           val p = pair._2._1
           val s = pair._2._2
           println(s"($l,$p,$s)")
-        })
+      }
+
     } else if (args.parquet()) {
       val sparkSession = SparkSession.builder.getOrCreate
       val partDF = sparkSession.read.parquet("TPC-H-0.1-PARQUET/part")
@@ -66,16 +69,19 @@ object Q3 {
       val lineitemDF = sparkSession.read.parquet("TPC-H-0.1-PARQUET/lineitem")
       val lineitemRDD = lineitemDF.rdd
 
-      lineitemRDD
+      val result = lineitemRDD
         .filter(row => row(10).toString.substring(0, date.value.length()) == date.value)
         .map(row => (row(0).toString, (partMap.value(row(1).toString), supplierMap.value(row(2).toString))))
         .takeOrdered(20)(Ordering[Int].on { (pair: (String, (String, String))) => Integer.parseInt(pair._1) })
-        .map(pair => {
+
+      for (i <- 0 until result.length) {
+          val pair = result(i)
           val l = pair._1
           val p = pair._2._1
           val s = pair._2._2
           println(s"($l,$p,$s)")
-        })
+      }
+
     } else {
       throw new IllegalArgumentException("Must include at least one of --text or --parquet command line options")
     }
