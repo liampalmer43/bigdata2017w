@@ -56,20 +56,18 @@ object Q4 {
           }
           val custKey = keyIterablePair._2._2.iterator.next;
           // c_custkey -> c_nationkey
-          // n_nationkey -> n_name
           val nationKey = customerMap.value(custKey)
-          val nationName = nationMap.value(nationKey)
-          ((nationKey, nationName), keyIterablePair._2._1.iterator.length)          
+          (nationKey.toInt, keyIterablePair._2._1.iterator.length)          
         }).reduceByKey(_ + _)
-        .map(pair => (Integer.parseInt(pair._1._1), (pair._1._2, pair._2)))
         .sortByKey(numPartitions = 1)
         .collect()
 
       for (i <- 0 until result.length) {
           val pair = result(i)
           val nationKey = pair._1
-          val nationName = pair._2._1
-          val count = pair._2._2
+          val count = pair._2
+          // n_nationkey -> n_name
+          val nationName = nationMap.value(nationKey.toString)
           println(s"($nationKey,$nationName,$count)")
       }
 
@@ -110,20 +108,18 @@ object Q4 {
           }
           val custKey = keyIterablePair._2._2.iterator.next;
           // c_custkey -> c_nationkey
-          // n_nationkey -> n_name
           val nationKey = customerMap.value(custKey)
-          val nationName = nationMap.value(nationKey)
-          ((nationKey, nationName), keyIterablePair._2._1.iterator.length)          
+          (nationKey.toInt, keyIterablePair._2._1.iterator.length)          
         }).reduceByKey(_ + _)
-        .map(pair => (Integer.parseInt(pair._1._1), (pair._1._2, pair._2)))
         .sortByKey(numPartitions = 1)
         .collect()
 
       for (i <- 0 until result.length) {
           val pair = result(i)
           val nationKey = pair._1
-          val nationName = pair._2._1
-          val count = pair._2._2
+          val count = pair._2
+          // n_nationkey -> n_name
+          val nationName = nationMap.value(nationKey.toString)
           println(s"($nationKey,$nationName,$count)")
       }
 

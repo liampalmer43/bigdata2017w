@@ -71,15 +71,16 @@ object Q5 {
           val nationKey = customerMap.value(custKey)
           val nationName = nationMap.value(nationKey)
 
-          val iter = keyIterablePair._2._1.iterator
           var result = new ListBuffer[((String, String), Int)]()
-          while (iter.hasNext) {
-            val e = ((nationName, iter.next), 1)
-            result += e
+          if (nationName == "CANADA" || nationName == "UNITED STATES") {
+            val iter = keyIterablePair._2._1.iterator
+            while (iter.hasNext) {
+              val e = ((nationName, iter.next), 1)
+              result += e
+            }
           }
           result.toList
         }).reduceByKey(_ + _)
-        .filter(pair => pair._1._1 == "CANADA" || pair._1._1 == "UNITED STATES")
         .sortByKey(numPartitions = 1)
         .collect()
 
@@ -133,15 +134,16 @@ object Q5 {
           val nationKey = customerMap.value(custKey)
           val nationName = nationMap.value(nationKey)
 
-          val iter = keyIterablePair._2._1.iterator
           var result = new ListBuffer[((String, String), Int)]()
-          while (iter.hasNext) {
-            val e = ((nationName, iter.next), 1)
-            result += e
+          if (nationName == "CANADA" || nationName == "UNITED STATES") {
+            val iter = keyIterablePair._2._1.iterator
+            while (iter.hasNext) {
+              val e = ((nationName, iter.next), 1)
+              result += e
+            }
           }
           result.toList
         }).reduceByKey(_ + _)
-        .filter(pair => pair._1._1 == "CANADA" || pair._1._1 == "UNITED STATES")
         .sortByKey(numPartitions = 1)
         .collect()
 
