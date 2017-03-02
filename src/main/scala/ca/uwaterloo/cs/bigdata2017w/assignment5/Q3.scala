@@ -52,21 +52,21 @@ object Q3 {
 
     } else if (args.parquet()) {
       val sparkSession = SparkSession.builder.getOrCreate
-      val partDF = sparkSession.read.parquet("TPC-H-0.1-PARQUET/part")
+      val partDF = sparkSession.read.parquet(args.input() + "/part")
       val partRDD = partDF.rdd
 
       val partMap = sc.broadcast(partRDD
         .map(row => (row(0).toString, row(1).toString))
         .collectAsMap)
 
-      val supplierDF = sparkSession.read.parquet("TPC-H-0.1-PARQUET/supplier")
+      val supplierDF = sparkSession.read.parquet(args.input() + "/supplier")
       val supplierRDD = supplierDF.rdd
 
       val supplierMap = sc.broadcast(supplierRDD
         .map(row => (row(0).toString, row(1).toString))
         .collectAsMap)
 
-      val lineitemDF = sparkSession.read.parquet("TPC-H-0.1-PARQUET/lineitem")
+      val lineitemDF = sparkSession.read.parquet(args.input() + "/lineitem")
       val lineitemRDD = lineitemDF.rdd
 
       val result = lineitemRDD

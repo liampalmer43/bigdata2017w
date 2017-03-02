@@ -65,13 +65,13 @@ object Q2 {
 
     } else if (args.parquet()) {
       val sparkSession = SparkSession.builder.getOrCreate
-      val lineitemDF = sparkSession.read.parquet("TPC-H-0.1-PARQUET/lineitem")
+      val lineitemDF = sparkSession.read.parquet(args.input() + "/lineitem")
       val lineitemRDD = lineitemDF.rdd
       val lineitemData = lineitemRDD
         .filter(row => row(10).toString.substring(0, date.value.length()) == date.value)
         .map(row => (row(0).toString, '*'))
 
-      val orderDF = sparkSession.read.parquet("TPC-H-0.1-PARQUET/orders")
+      val orderDF = sparkSession.read.parquet(args.input() + "/orders")
       val orderRDD = orderDF.rdd
       val orderData = orderRDD
         .map(row => (row(0).toString, row(6).toString))

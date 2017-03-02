@@ -75,26 +75,26 @@ object Q4 {
       val sparkSession = SparkSession.builder.getOrCreate
 
       // c_custkey -> c_nationkey
-      val customerDF = sparkSession.read.parquet("TPC-H-0.1-PARQUET/customer")
+      val customerDF = sparkSession.read.parquet(args.input() + "/customer")
       val customerRDD = customerDF.rdd
       val customerMap = sc.broadcast(customerRDD
         .map(row => (row(0).toString, row(3).toString))
         .collectAsMap)
 
       // n_nationkey -> n_name
-      val nationDF = sparkSession.read.parquet("TPC-H-0.1-PARQUET/nation")
+      val nationDF = sparkSession.read.parquet(args.input() + "/nation")
       val nationRDD = nationDF.rdd
       val nationMap = sc.broadcast(nationRDD
         .map(row => (row(0).toString, row(1).toString))
         .collectAsMap)
 
-      val lineitemDF = sparkSession.read.parquet("TPC-H-0.1-PARQUET/lineitem")
+      val lineitemDF = sparkSession.read.parquet(args.input() + "/lineitem")
       val lineitemRDD = lineitemDF.rdd
       val lineitemData = lineitemRDD
         .filter(row => row(10).toString.substring(0, date.value.length()) == date.value)
         .map(row => (row(0).toString, '*'))
 
-      val orderDF = sparkSession.read.parquet("TPC-H-0.1-PARQUET/orders")
+      val orderDF = sparkSession.read.parquet(args.input() + "/orders")
       val orderRDD = orderDF.rdd
       val orderData = orderRDD
         .map(row => (row(0).toString, row(1).toString))

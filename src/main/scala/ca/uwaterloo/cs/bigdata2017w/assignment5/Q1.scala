@@ -46,7 +46,7 @@ object Q1 extends Tokenizer {
       println("ANSWER=" + result)
     } else if (args.parquet()) {
       val sparkSession = SparkSession.builder.getOrCreate
-      val lineitemDF = sparkSession.read.parquet("TPC-H-0.1-PARQUET/lineitem")
+      val lineitemDF = sparkSession.read.parquet(args.input() + "/lineitem")
       val lineitemRDD = lineitemDF.rdd
       val result = lineitemRDD
         .filter(row => row(10).toString.substring(0, date.value.length()) == date.value)
