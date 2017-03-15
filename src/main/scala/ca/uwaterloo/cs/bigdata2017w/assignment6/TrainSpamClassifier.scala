@@ -10,7 +10,7 @@ import org.rogach.scallop._
 import scala.math.exp
 import scala.collection.mutable.Map
 
-class A6Conf(args: Seq[String]) extends ScallopConf(args) {
+class A6TrainConf(args: Seq[String]) extends ScallopConf(args) {
   mainOptions = Seq(input, model)
   val input = opt[String](descr = "input path", required = true)
   val model = opt[String](descr = "output path", required = true)
@@ -21,13 +21,16 @@ object TrainSpamClassifier {
   val log = Logger.getLogger(getClass().getName())
 
   def main(argv: Array[String]) {
-    val args = new A6Conf(argv)
+    val args = new A6TrainConf(argv)
 
     log.info("Input: " + args.input())
     log.info("Model: " + args.model())
 
     val conf = new SparkConf().setAppName("TrainSpamClassifier")
     val sc = new SparkContext(conf)
+
+    val outputDir = new Path(args.model())
+    FileSystem.get(sc.hadoopConfiguration).delete(outputDir, true)
 
     val textFile = sc.textFile(args.input())
 
@@ -39,7 +42,6 @@ object TrainSpamClassifier {
       val iter  = keyIterablePair._2.iterator
       val w = Map[Int, Double]()
       val delta = 0.002
-println(iter.hasNext)
       while (iter.hasNext) {
         val data = iter.next
         val isSpam = if (data._2 == "spam") 1 else 0
