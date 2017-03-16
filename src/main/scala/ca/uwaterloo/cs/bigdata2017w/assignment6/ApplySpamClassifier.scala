@@ -7,8 +7,6 @@ import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 import org.rogach.scallop._
 
-import scala.math.exp
-
 class A6ApplyConf(args: Seq[String]) extends ScallopConf(args) {
   mainOptions = Seq(input, model)
   val input = opt[String](descr = "input path", required = true)
