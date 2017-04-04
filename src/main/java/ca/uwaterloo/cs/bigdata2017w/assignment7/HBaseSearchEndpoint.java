@@ -31,6 +31,7 @@ import java.io.IOException;
 
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
+import org.eclipse.jetty.servlet.ServletHolder;
 
 public class HBaseSearchEndpoint extends Configured implements Tool {
 
@@ -75,10 +76,11 @@ public class HBaseSearchEndpoint extends Configured implements Tool {
 
     Server server = new Server(args.port);
     ServletContextHandler handler = new ServletContextHandler(server, "/");
-    handler.addServlet(JettyServer.class, "/search");
-    handler.setAttribute("index", args.index);
-    handler.setAttribute("collection", args.collection);
-    handler.setAttribute("config", args.config);
+
+    JettyServer jetty = new JettyServer(args.index, args.collection, args.config);
+    ServletHolder jettyHolder = new ServletHolder(jetty);
+    handler.addServlet(jettyHolder, "/search");
+
     server.start();
 
     return 1;

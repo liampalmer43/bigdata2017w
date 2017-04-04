@@ -55,17 +55,24 @@ public class JettyServer extends HttpServlet {
   private Table indexTable;
   private Table collectionTable;
   private Stack<Set<Integer>> stack;
+  private String indexTableName;
+  private String collectionTableName;
+  private String configFile;
 
-  public JettyServer() {}
+  public JettyServer(String index, String collection, String config) {
+    indexTableName = index;
+    collectionTableName = collection;
+    configFile = config;
+  }
 
-  private void initialize(String config, String index, String collection) throws IOException {
+  private void initialize() throws IOException {
     Configuration conf = new Configuration();
-    conf.addResource(new Path(config));
+    conf.addResource(new Path(configFile));
 
     Configuration hbaseConfig = HBaseConfiguration.create(conf);
     Connection connection = ConnectionFactory.createConnection(hbaseConfig);
-    indexTable = connection.getTable(TableName.valueOf(index));
-    collectionTable = connection.getTable(TableName.valueOf(collection));
+    indexTable = connection.getTable(TableName.valueOf(indexTableName));
+    collectionTable = connection.getTable(TableName.valueOf(collectionTableName));
 
     stack = new Stack<>();
   }
@@ -147,8 +154,11 @@ public class JettyServer extends HttpServlet {
     Result result = indexTable.get(get);
 
     NavigableMap<byte[],byte[]> map = result.getFamilyMap(BuildInvertedIndexHBase.PF);
-    for (NavigableMap.Entry<byte[], byte[]> entry : map.entrySet()) {
-      list.add(new PairOfInts(Bytes.toInt(entry.getKey()), Bytes.toInt(entry.getValue())));
+
+    if (map != null) {
+      for (NavigableMap.Entry<byte[], byte[]> entry : map.entrySet()) {
+        list.add(new PairOfInts(Bytes.toInt(entry.getKey()), Bytes.toInt(entry.getValue())));
+      }
     }
 
     return list;
@@ -178,12 +188,8 @@ public class JettyServer extends HttpServlet {
   @Override
   public void init() throws ServletException
   {
-    String config = (String) getServletContext().getAttribute("config");
-    String index = (String) getServletContext().getAttribute("index");
-    String collection = (String) getServletContext().getAttribute("collection");
-
     try {
-      initialize(config, index, collection);
+      initialize();
     } catch (IOException e) {
       System.err.println(e.getMessage());
       throw new ServletException("Unable to initialize");
@@ -195,6 +201,7 @@ public class JettyServer extends HttpServlet {
                    throws ServletException, IOException {
     
     String query = req.getQueryString().substring(6);
+
     ArrayList<String> items = runQuery(query);
 
     resp.setStatus(HttpStatus.OK_200);
