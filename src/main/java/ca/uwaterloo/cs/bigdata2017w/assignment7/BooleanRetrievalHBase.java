@@ -190,9 +190,6 @@ public class BooleanRetrievalHBase extends Configured implements Tool {
     initialize(args.config, args.index, args.collection);
 
     System.out.println("Query: " + args.query);
-    System.out.println("Index: " + args.index);
-    System.out.println("Collection: " + args.collection);
-    System.out.println("Config: " + args.config);
 
     long startTime = System.currentTimeMillis();
     runQuery(args.query);
