@@ -141,8 +141,10 @@ public class BooleanRetrievalHBase extends Configured implements Tool {
     Result result = indexTable.get(get);
 
     NavigableMap<byte[],byte[]> map = result.getFamilyMap(BuildInvertedIndexHBase.PF);
-    for (NavigableMap.Entry<byte[], byte[]> entry : map.entrySet()) {
-      list.add(new PairOfInts(Bytes.toInt(entry.getKey()), Bytes.toInt(entry.getValue())));
+    if (map != null) {
+      for (NavigableMap.Entry<byte[], byte[]> entry : map.entrySet()) {
+        list.add(new PairOfInts(Bytes.toInt(entry.getKey()), Bytes.toInt(entry.getValue())));
+      }
     }
 
     return list;
